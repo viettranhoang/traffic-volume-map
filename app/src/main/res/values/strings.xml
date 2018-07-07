@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Traffic Volume Map</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="maps_api_key">AIzaSyAdqU_ayvuvcb6Mn6H2QIEPf0SHesnWK8o</string>
+</resources>
