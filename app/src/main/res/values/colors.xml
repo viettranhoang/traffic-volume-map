@@ -10,4 +10,8 @@
     <color name="warm_grey">#999999</color>
     <color name="white">#ffffff</color>
     <color name="dull_teal">#5bafa2</color>
+    <color name="circle_brown">#46792222</color>
+    <color name="circle_red">#46fd5858</color>
+    <color name="circle_orange">#46d9aa6d</color>
+    <color name="circle_green">#4677dc9b</color>
 </resources>

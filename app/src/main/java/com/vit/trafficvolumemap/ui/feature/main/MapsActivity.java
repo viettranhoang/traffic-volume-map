@@ -1,14 +1,24 @@
-package com.vit.trafficvolumemap;
+package com.vit.trafficvolumemap.ui.feature.main;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.location.Location;
 import android.os.Build;
+import android.support.annotation.ColorInt;
+import android.support.annotation.ColorRes;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -19,21 +29,42 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.GenericTypeIndicator;
+import com.google.firebase.database.ValueEventListener;
+import com.vit.trafficvolumemap.BuildConfig;
+import com.vit.trafficvolumemap.R;
+import com.vit.trafficvolumemap.data.model.Camera;
+import com.vit.trafficvolumemap.logger.CrashReportingTree;
+import com.vit.trafficvolumemap.ui.util.Constant;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import timber.log.Timber;
 
 public class MapsActivity extends FragmentActivity
         implements OnMapReadyCallback,
-        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
+        GoogleApiClient.ConnectionCallbacks,
+        GoogleApiClient.OnConnectionFailedListener {
 
 
     // ---------------------------------------------------------------------------------------------
     // FIELDS
     // ---------------------------------------------------------------------------------------------
     private static final int MY_REQUEST_INT = 177;
+
+    private FirebaseDatabase mDatabase;
+    private DatabaseReference mRef;
 
     private GoogleMap mMap;
 
@@ -43,6 +74,8 @@ public class MapsActivity extends FragmentActivity
 
     private LatLng mLatLngSearchPosition;
 
+    private List<Marker> mMarkerList = new ArrayList<>();
+
 
     // ---------------------------------------------------------------------------------------------
     // OVERRIDE METHODS
@@ -51,6 +84,7 @@ public class MapsActivity extends FragmentActivity
     protected void onCreate(Bundle savedInstanceState) {
         try {
             super.onCreate(savedInstanceState);
+            initTimber();
 
             mGoogleApiClient = new GoogleApiClient.Builder(this).addConnectionCallbacks(this)
                     .addOnConnectionFailedListener(this)
@@ -58,6 +92,7 @@ public class MapsActivity extends FragmentActivity
                     .build();
 
             initView();
+            fetchDataFromFirebase();
         } catch (Exception e) {
             Timber.e(e);
         }
@@ -101,12 +136,13 @@ public class MapsActivity extends FragmentActivity
             }
 
             onClickMap();
+            formatInfoWindow();
+
         } catch (Exception e) {
             Timber.e(e);
         }
 
     }
-
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
@@ -147,6 +183,17 @@ public class MapsActivity extends FragmentActivity
     // ---------------------------------------------------------------------------------------------
 
     /**
+     * setup timber
+     */
+    private void initTimber() {
+        if (BuildConfig.DEBUG) {
+            Timber.plant(new Timber.DebugTree());
+        } else {
+            Timber.plant(new CrashReportingTree());
+        }
+    }
+
+    /**
      * init view
      */
     private void initView() {
@@ -163,15 +210,95 @@ public class MapsActivity extends FragmentActivity
     }
 
     /**
-     * show marker and circle around marker when touch map
+     * fetch data from Firebase
+     */
+    private void fetchDataFromFirebase() {
+        try {
+            mDatabase = FirebaseDatabase.getInstance();
+            mRef = mDatabase.getReference("camera");
+
+            mRef.addValueEventListener(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+
+                    List<Camera> cameraList = getDataFromFirebase(dataSnapshot);
+                    displayTraffic(cameraList);
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+
+                }
+            });
+        } catch (Exception e) {
+            Timber.e(e);
+        }
+    }
+
+    /**
+     * get list camera from firebase
+     *
+     * @param dataSnapshot data of firebase
+     * @return list camera
+     */
+    private List<Camera> getDataFromFirebase(DataSnapshot dataSnapshot) {
+        List<Camera> cameraList = new ArrayList<>();
+
+        try {
+            GenericTypeIndicator<List<Camera>> genericTypeIndicator
+                    = new GenericTypeIndicator<List<Camera>>() {};
+            cameraList = dataSnapshot.getValue(genericTypeIndicator);
+        } catch (Exception e) {
+            Timber.e(e);
+        }
+
+        return cameraList;
+    }
+
+    /**
+     * display traffic by circle around camera (position)
+     *
+     * @param cameraList list camera
+     */
+    private void displayTraffic(List<Camera> cameraList) {
+        mMap.clear();
+        for (final Camera camera: cameraList) {
+            final LatLng position = new LatLng(camera.getLat(), camera.getLng());
+            int color;
+            if (camera.getArea() < 30) {
+                color = R.color.circle_green;
+            } else if (camera.getArea() > 30 && camera.getArea() < 60) {
+                color = R.color.circle_orange;
+            } else if (camera.getArea() > 60 && camera.getArea() < 80) {
+                color = R.color.circle_red;
+            } else {
+                color = R.color.circle_brown;
+            }
+            showCircleToGoogleMap(position, Constant.RADIUS_CIRCLE_TRAFFIC, color, camera.toString());
+
+        }
+    }
+
+    /**
+     * invisible all marker when touch map
+     *
+     * show marker when touch circle
      */
     private void onClickMap() {
         try {
             mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
                 @Override
                 public void onMapClick(LatLng latLng) {
-                    showMarkerToGoogleMap(latLng);
-                    showCircleToGoogleMap(latLng, 0.5f);
+                    for (Marker m : mMarkerList) {
+                        m.setVisible(false);
+                    }
+                }
+            });
+
+            mMap.setOnCircleClickListener(new GoogleMap.OnCircleClickListener() {
+                @Override
+                public void onCircleClick(Circle circle) {
+                    showMarkerToGoogleMap(circle.getCenter(), (String) circle.getTag());
                 }
             });
         } catch (Exception e) {
@@ -185,18 +312,64 @@ public class MapsActivity extends FragmentActivity
      *
      * @param position position's marker
      */
-    public void showMarkerToGoogleMap(LatLng position) {
+    public void showMarkerToGoogleMap(LatLng position, String title) {
         try {
-            mMap.clear();
+            String[] lines = title.split("\n", 2);
+
             MarkerOptions markerOptions = new MarkerOptions().position(position);
             markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_location_active));
-            mMap.addMarker(markerOptions);
+            markerOptions.title(lines[0]);
+            markerOptions.snippet(lines[1]);
+
+            Marker marker = mMap.addMarker(markerOptions);
+            marker.showInfoWindow();
+
+            mMarkerList.add(marker);
+
+        } catch (Exception e) {
+            Timber.e(e);
+        }
+    }
+
+    /**
+     * format info display on markers
+     */
+    private void formatInfoWindow() {
+        try {
+            mMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
+
+                @Override
+                public View getInfoWindow(Marker arg0) {
+                    return null;
+                }
+
+                @Override
+                public View getInfoContents(Marker marker) {
+
+                    LinearLayout info = new LinearLayout(getApplicationContext());
+                    info.setOrientation(LinearLayout.VERTICAL);
+
+                    TextView title = new TextView(getApplicationContext());
+                    title.setTextColor(Color.BLACK);
+                    title.setGravity(Gravity.CENTER);
+                    title.setTypeface(null, Typeface.BOLD);
+                    title.setText(marker.getTitle());
+
+                    TextView snippet = new TextView(getApplicationContext());
+                    snippet.setTextColor(Color.GRAY);
+                    snippet.setText(marker.getSnippet());
+
+                    info.addView(title);
+                    info.addView(snippet);
+
+                    return info;
+                }
+            });
         } catch (Exception e) {
             Timber.e(e);
         }
 
     }
-
 
     /**
      * move camera to a position on map
@@ -228,20 +401,22 @@ public class MapsActivity extends FragmentActivity
      * @param position position is LatLng
      * @param radius radius of circle
      */
-    public void showCircleToGoogleMap(LatLng position, float radius) {
+    public void showCircleToGoogleMap(LatLng position, float radius, int color, String tag) {
         try {
             if (position == null) {
                 return;
             }
+
             CircleOptions circleOptions = new CircleOptions();
             circleOptions.center(position);
-            //Radius in meters
             circleOptions.radius(radius * 1000);
-            circleOptions.fillColor(getResources().getColor(R.color.circle_on_map));
-            circleOptions.strokeColor(getResources().getColor(R.color.circle_on_map));
+            circleOptions.fillColor(getResources().getColor(color));
             circleOptions.strokeWidth(0);
+            circleOptions.clickable(true);
+
             if (mMap != null) {
-                mMap.addCircle(circleOptions);
+                Circle circle = mMap.addCircle(circleOptions);
+                circle.setTag(tag);
             }
         } catch (Exception e) {
             Timber.e(e);
