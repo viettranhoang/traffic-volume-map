@@ -21,8 +21,9 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
+
+import timber.log.Timber;
 
 public class MapsActivity extends FragmentActivity
         implements OnMapReadyCallback,
@@ -48,14 +49,19 @@ public class MapsActivity extends FragmentActivity
     // ---------------------------------------------------------------------------------------------
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+        try {
+            super.onCreate(savedInstanceState);
 
-        mGoogleApiClient = new GoogleApiClient.Builder(this).addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(LocationServices.API)
-                .build();
+            mGoogleApiClient = new GoogleApiClient.Builder(this).addConnectionCallbacks(this)
+                    .addOnConnectionFailedListener(this)
+                    .addApi(LocationServices.API)
+                    .build();
 
-        initView();
+            initView();
+        } catch (Exception e) {
+            Timber.e(e);
+        }
+
     }
 
     @Override
@@ -72,48 +78,56 @@ public class MapsActivity extends FragmentActivity
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        mMap = googleMap;
+        try {
+            mMap = googleMap;
 
-        mMap.getUiSettings().setZoomControlsEnabled(true);
-        mMap.getUiSettings().setCompassEnabled(true);
-        mMap.setTrafficEnabled(true);
-        mMap.setBuildingsEnabled(true);
+            mMap.getUiSettings().setZoomControlsEnabled(true);
+            mMap.getUiSettings().setCompassEnabled(true);
+            mMap.setTrafficEnabled(true);
+            mMap.setBuildingsEnabled(true);
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED
+                    && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,
-                Manifest.permission.ACCESS_FINE_LOCATION} , MY_REQUEST_INT);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,
+                            Manifest.permission.ACCESS_FINE_LOCATION}, MY_REQUEST_INT);
+                }
+                return;
+            } else {
+                mMap.setMyLocationEnabled(true);
             }
-            return;
-        }
-        else {
-            mMap.setMyLocationEnabled(true);
+
+            onClickMap();
+        } catch (Exception e) {
+            Timber.e(e);
         }
 
-        onClickMap();
     }
 
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        if (ActivityCompat.checkSelfPermission(this,
-                android.Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            final Location lastLocation =
-                    LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-            if (lastLocation == null) {
-                return;
+        try {
+            if (ActivityCompat.checkSelfPermission(this,
+                    android.Manifest.permission.ACCESS_FINE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED
+                    && ActivityCompat.checkSelfPermission(this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                final Location lastLocation =
+                        LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+                if (lastLocation == null) {
+                    return;
+                }
+                mCurrentLocation = new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude());
+                if (mLatLngSearchPosition == null) {
+                    showCameraToPosition(mCurrentLocation, Constant.LEVEL_ZOOM_DEFAULT);
+                }
             }
-            mCurrentLocation = new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude());
-            if (mLatLngSearchPosition == null) {
-                showCameraToPosition(mCurrentLocation, Constant.LEVEL_ZOOM_DEFAULT);
-            }
+        } catch (Exception e) {
+            Timber.e(e);
         }
     }
 
@@ -128,7 +142,6 @@ public class MapsActivity extends FragmentActivity
     }
 
 
-
     // ---------------------------------------------------------------------------------------------
     // PRIVATE METHODS
     // ---------------------------------------------------------------------------------------------
@@ -137,74 +150,101 @@ public class MapsActivity extends FragmentActivity
      * init view
      */
     private void initView() {
-        setContentView(R.layout.activity_maps);
+        try {
+            setContentView(R.layout.activity_maps);
 
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
+            SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                    .findFragmentById(R.id.map);
+            mapFragment.getMapAsync(this);
+        } catch (Exception e) {
+            Timber.e(e);
+        }
+
     }
 
     /**
-     * show marker when touch map
+     * show marker and circle around marker when touch map
      */
     private void onClickMap() {
-        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
-            @Override
-            public void onMapClick(LatLng latLng) {
-                showMarkerToGoogleMap(latLng);
-                showCircleToGoogleMap(latLng, 0.5f);
-            }
-        });
+        try {
+            mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+                @Override
+                public void onMapClick(LatLng latLng) {
+                    showMarkerToGoogleMap(latLng);
+                    showCircleToGoogleMap(latLng, 0.5f);
+                }
+            });
+        } catch (Exception e) {
+            Timber.e(e);
+        }
+
     }
 
     /**
      * show marker when user click a position on map
-     * @param position
+     *
+     * @param position position's marker
      */
     public void showMarkerToGoogleMap(LatLng position) {
-        mMap.clear();
-        MarkerOptions markerOptions = new MarkerOptions().position(position);
-        markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_location_active));
-        mMap.addMarker(markerOptions);
+        try {
+            mMap.clear();
+            MarkerOptions markerOptions = new MarkerOptions().position(position);
+            markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_location_active));
+            mMap.addMarker(markerOptions);
+        } catch (Exception e) {
+            Timber.e(e);
+        }
+
     }
 
 
     /**
      * move camera to a position on map
-     * @param position
-     * @param zoomLevel
+     *
+     * @param position position is LatLng
+     * @param zoomLevel zoom level on screen
      */
     public void showCameraToPosition(LatLng position, float zoomLevel) {
-        CameraPosition cameraPosition = CameraPosition.builder()
-                .target(position)
-                .zoom(zoomLevel)
-                .bearing(0.0f)
-                .tilt(0.0f)
-                .build();
+        try {
+            CameraPosition cameraPosition = CameraPosition.builder()
+                    .target(position)
+                    .zoom(zoomLevel)
+                    .bearing(0.0f)
+                    .tilt(0.0f)
+                    .build();
 
-        if (mMap != null) {
-            mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), null);
+            if (mMap != null) {
+                mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), null);
+            }
+        } catch (Exception e) {
+            Timber.e(e);
         }
+
     }
 
     /**
      * draw circle on positon of map
-     * @param position
-     * @param radius
+     *
+     * @param position position is LatLng
+     * @param radius radius of circle
      */
     public void showCircleToGoogleMap(LatLng position, float radius) {
-        if (position == null) {
-            return;
-        }
-        CircleOptions circleOptions = new CircleOptions();
-        circleOptions.center(position);
-        //Radius in meters
-        circleOptions.radius(radius * 1000);
-        circleOptions.fillColor(getResources().getColor(R.color.circle_on_map));
-        circleOptions.strokeColor(getResources().getColor(R.color.circle_on_map));
-        circleOptions.strokeWidth(0);
-        if (mMap != null) {
-            mMap.addCircle(circleOptions);
+        try {
+            if (position == null) {
+                return;
+            }
+            CircleOptions circleOptions = new CircleOptions();
+            circleOptions.center(position);
+            //Radius in meters
+            circleOptions.radius(radius * 1000);
+            circleOptions.fillColor(getResources().getColor(R.color.circle_on_map));
+            circleOptions.strokeColor(getResources().getColor(R.color.circle_on_map));
+            circleOptions.strokeWidth(0);
+            if (mMap != null) {
+                mMap.addCircle(circleOptions);
+            }
+        } catch (Exception e) {
+            Timber.e(e);
         }
     }
 }
