@@ -1,6 +1,7 @@
 package com.vit.trafficvolumemap.ui.feature.main;
 
 import android.Manifest;
+import android.app.TimePickerDialog;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -11,6 +12,7 @@ import android.support.annotation.ColorInt;
 import android.support.annotation.ColorRes;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
@@ -18,6 +20,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.TimePicker;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -48,8 +51,12 @@ import com.vit.trafficvolumemap.logger.CrashReportingTree;
 import com.vit.trafficvolumemap.ui.util.Constant;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import butterknife.OnClick;
 import timber.log.Timber;
 
 public class MapsActivity extends FragmentActivity
@@ -84,12 +91,23 @@ public class MapsActivity extends FragmentActivity
 
 
     // ---------------------------------------------------------------------------------------------
+    // BIND VIEWS
+    // ---------------------------------------------------------------------------------------------
+    @BindView(R.id.button_guess)
+    FloatingActionButton buttonGuess;
+
+    @BindView(R.id.text_guess_time)
+    TextView textGuessTime;
+
+
+    // ---------------------------------------------------------------------------------------------
     // OVERRIDE METHODS
     // ---------------------------------------------------------------------------------------------
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         try {
             super.onCreate(savedInstanceState);
+
             initTimber();
 
             mGoogleApiClient = new GoogleApiClient.Builder(this).addConnectionCallbacks(this)
@@ -183,6 +201,16 @@ public class MapsActivity extends FragmentActivity
 
     }
 
+    @OnClick(R.id.button_guess)
+    void onClickGuess(View view) {
+        showTimeDialog();
+    }
+
+    @OnClick(R.id.text_guess_time)
+    void onClickTextGuessTime(View view) {
+        textGuessTime.setVisibility(View.INVISIBLE);
+    }
+
 
     // ---------------------------------------------------------------------------------------------
     // PRIVATE METHODS
@@ -205,6 +233,7 @@ public class MapsActivity extends FragmentActivity
     private void initView() {
         try {
             setContentView(R.layout.activity_maps);
+            ButterKnife.bind(this);
 
             SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                     .findFragmentById(R.id.map);
@@ -256,7 +285,8 @@ public class MapsActivity extends FragmentActivity
 
         try {
             GenericTypeIndicator<List<Camera>> genericTypeIndicator
-                    = new GenericTypeIndicator<List<Camera>>() {};
+                    = new GenericTypeIndicator<List<Camera>>() {
+            };
             cameraList = dataSnapshot.getValue(genericTypeIndicator);
         } catch (Exception e) {
             Timber.e(e);
@@ -272,7 +302,7 @@ public class MapsActivity extends FragmentActivity
      */
     private void displayTraffic(List<Camera> cameraList) {
         mMap.clear();
-        for (final Camera camera: cameraList) {
+        for (final Camera camera : cameraList) {
             final LatLng position = new LatLng(camera.getLat(), camera.getLng());
             int color;
             float feature = (sIsGuess) ? camera.getGuess() : camera.getArea();
@@ -294,7 +324,7 @@ public class MapsActivity extends FragmentActivity
 
     /**
      * invisible all marker when touch map
-     *
+     * <p>
      * show marker when touch circle
      */
     private void onClickMap() {
@@ -387,7 +417,7 @@ public class MapsActivity extends FragmentActivity
     /**
      * move camera to a position on map
      *
-     * @param position position is LatLng
+     * @param position  position is LatLng
      * @param zoomLevel zoom level on screen
      */
     public void showCameraToPosition(LatLng position, float zoomLevel) {
@@ -412,7 +442,7 @@ public class MapsActivity extends FragmentActivity
      * draw circle on positon of map
      *
      * @param position position is LatLng
-     * @param radius radius of circle
+     * @param radius   radius of circle
      */
     public void showCircleToGoogleMap(LatLng position, float radius, int color, String tag) {
         try {
@@ -434,5 +464,27 @@ public class MapsActivity extends FragmentActivity
         } catch (Exception e) {
             Timber.e(e);
         }
+    }
+
+    /**
+     * show time picker dialog for guess traffic
+     */
+    private void showTimeDialog() {
+        Calendar calendar = Calendar.getInstance();
+        final int hour = calendar.get(Calendar.HOUR_OF_DAY);
+        int minute = calendar.get(Calendar.MINUTE);
+        TimePickerDialog timePickerDialog = new TimePickerDialog(this, new TimePickerDialog.OnTimeSetListener() {
+            @Override
+            public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
+                String s = hourOfDay + ":" + minute;
+                int hourTam = hourOfDay;
+                if (hourTam > 12)
+                    hourTam = hourTam - 12;
+                textGuessTime.setText(hourTam + ":" + minute + (hourOfDay > 12 ? " PM" : " AM"));
+                textGuessTime.setTag(s);
+                textGuessTime.setVisibility(View.VISIBLE);
+            }
+        }, hour, minute, true);
+        timePickerDialog.show();
     }
 }
