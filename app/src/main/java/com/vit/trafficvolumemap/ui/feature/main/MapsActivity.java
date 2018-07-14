@@ -69,11 +69,9 @@ public class MapsActivity extends FragmentActivity
     private static final int MY_REQUEST_INT = 177;
 
     private static boolean sIsGuess = false;
-    private static String sGuessTime = "";
 
     private FirebaseDatabase mDatabase;
     private DatabaseReference mRef;
-    private DatabaseReference mGuessRef;
 
     private GoogleMap mMap;
 
@@ -87,8 +85,6 @@ public class MapsActivity extends FragmentActivity
 
     private List<Circle> mCircleList = new ArrayList<>();
 
-    private String mGuessTime = "";
-    private Calendar date;
 
     // ---------------------------------------------------------------------------------------------
     // BIND VIEWS
@@ -278,7 +274,6 @@ public class MapsActivity extends FragmentActivity
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     sIsGuess = (boolean) dataSnapshot.child("guess").child("is-guess").getValue();
-                    sGuessTime = (String) dataSnapshot.child("guess").child("guess-time").getValue();
 
                     List<Camera> cameraList = getDataFromFirebase(dataSnapshot.child("camera"));
                     displayTraffic(cameraList);
@@ -329,11 +324,11 @@ public class MapsActivity extends FragmentActivity
             float feature = (sIsGuess) ? camera.getGuess() : camera.getArea();
             String info = (sIsGuess) ? camera.toStringGuess() : camera.toString();
 
-            if (feature < 30) {
+            if (feature < Constant.VOLUME_SMALL) {
                 color = R.color.circle_green;
-            } else if (feature > 30 && feature < 60) {
+            } else if (feature > Constant.VOLUME_SMALL && feature < Constant.VOLUME_MEDIUN) {
                 color = R.color.circle_orange;
-            } else if (feature > 60 && feature < 80) {
+            } else if (feature > Constant.VOLUME_MEDIUN && feature < Constant.VOLUME_LARGE) {
                 color = R.color.circle_red;
             } else {
                 color = R.color.circle_brown;

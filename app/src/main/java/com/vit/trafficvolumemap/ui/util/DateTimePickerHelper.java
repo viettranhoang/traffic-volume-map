@@ -8,6 +8,12 @@ public class DateTimePickerHelper {
     public static final String DATE_PICKER_FRAGMENT_DIALOG = "DatePickerFragmentDialog";
     public static final String TIME_PICKER_FRAGMENT_DIALOG = "TimePickerFragmentDialog";
 
+    /**
+     * all is format time
+     *
+     * @param time
+     * @return string time formated
+     */
 
     public static String getDateOnly(long time) {
         return new SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(time);
