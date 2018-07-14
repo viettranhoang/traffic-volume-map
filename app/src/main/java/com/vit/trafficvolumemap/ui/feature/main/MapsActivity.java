@@ -1,15 +1,11 @@
 package com.vit.trafficvolumemap.ui.feature.main;
 
 import android.Manifest;
-import android.app.TimePickerDialog;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.graphics.drawable.ColorDrawable;
 import android.location.Location;
 import android.os.Build;
-import android.support.annotation.ColorInt;
-import android.support.annotation.ColorRes;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
@@ -20,9 +16,10 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.TimePicker;
-import android.widget.Toast;
 
+import com.fastaccess.datetimepicker.DatePickerFragmentDialog;
+import com.fastaccess.datetimepicker.callback.DatePickerCallback;
+import com.fastaccess.datetimepicker.callback.TimePickerCallback;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationServices;
@@ -37,7 +34,6 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.Polyline;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -49,6 +45,7 @@ import com.vit.trafficvolumemap.R;
 import com.vit.trafficvolumemap.data.model.Camera;
 import com.vit.trafficvolumemap.logger.CrashReportingTree;
 import com.vit.trafficvolumemap.ui.util.Constant;
+import com.vit.trafficvolumemap.ui.util.DateTimePickerHelper;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -62,7 +59,8 @@ import timber.log.Timber;
 public class MapsActivity extends FragmentActivity
         implements OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener {
+        GoogleApiClient.OnConnectionFailedListener,
+        DatePickerCallback, TimePickerCallback {
 
 
     // ---------------------------------------------------------------------------------------------
@@ -89,6 +87,8 @@ public class MapsActivity extends FragmentActivity
 
     private List<Circle> mCircleList = new ArrayList<>();
 
+    private String mGuessTime = "";
+    private Calendar date;
 
     // ---------------------------------------------------------------------------------------------
     // BIND VIEWS
@@ -122,7 +122,6 @@ public class MapsActivity extends FragmentActivity
         } catch (Exception e) {
             Timber.e(e);
         }
-
     }
 
     @Override
@@ -205,7 +204,8 @@ public class MapsActivity extends FragmentActivity
 
     @OnClick(R.id.button_guess)
     void onClickGuess(View view) {
-        showTimeDialog();
+        DatePickerFragmentDialog.newInstance(true)
+                .show(getSupportFragmentManager(), DateTimePickerHelper.DATE_PICKER_FRAGMENT_DIALOG);
     }
 
     @OnClick(R.id.text_guess_time)
@@ -214,6 +214,21 @@ public class MapsActivity extends FragmentActivity
         mRef.child("guess").child("is-guess").setValue(false);
     }
 
+    @Override
+    public void onDateSet(long date) {
+
+    }
+
+    @Override
+    public void onTimeSet(long timeOnly, long dateWithTime) {
+        try {
+            textGuessTime.setText(DateTimePickerHelper.getDateAndTime(dateWithTime));
+            textGuessTime.setVisibility(View.VISIBLE);
+            writeTimeGuessToFirebase(DateTimePickerHelper.getDateTime(dateWithTime));
+        } catch (Exception e) {
+            Timber.e(e);
+        }
+    }
 
     // ---------------------------------------------------------------------------------------------
     // PRIVATE METHODS
@@ -231,7 +246,7 @@ public class MapsActivity extends FragmentActivity
     }
 
     /**
-     * init view
+     * setup view
      */
     private void initView() {
         try {
@@ -244,7 +259,6 @@ public class MapsActivity extends FragmentActivity
         } catch (Exception e) {
             Timber.e(e);
         }
-
     }
 
     /**
@@ -265,7 +279,6 @@ public class MapsActivity extends FragmentActivity
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     sIsGuess = (boolean) dataSnapshot.child("guess").child("is-guess").getValue();
                     sGuessTime = (String) dataSnapshot.child("guess").child("guess-time").getValue();
-                    Timber.i(sGuessTime + "");
 
                     List<Camera> cameraList = getDataFromFirebase(dataSnapshot.child("camera"));
                     displayTraffic(cameraList);
@@ -475,63 +488,12 @@ public class MapsActivity extends FragmentActivity
     }
 
     /**
-     * show time picker dialog for guess traffic
-     */
-    private void showTimeDialog() {
-        try {
-            Calendar calendar = Calendar.getInstance();
-            final int hour = calendar.get(Calendar.HOUR_OF_DAY);
-            int minute = calendar.get(Calendar.MINUTE);
-
-            TimePickerDialog timePickerDialog = new TimePickerDialog(this, new TimePickerDialog.OnTimeSetListener() {
-                @Override
-                public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
-                    String s = hourOfDay + ":" + minute;
-                    textGuessTime.setText(hourOfDay + ":" + minute);
-                    textGuessTime.setTag(s);
-                    textGuessTime.setVisibility(View.VISIBLE);
-
-                    writeTimeGuessToFirebase(getTimeGuess(hourOfDay, minute));
-                }
-            }, hour, minute, true);
-            timePickerDialog.show();
-        } catch (Exception e) {
-            Timber.e(e);
-        }
-    }
-
-    /**
-     * get time guess
-     *
-     * @param hour
-     * @param minute
-     * @return
-     */
-    private String getTimeGuess(int hour, int minute) {
-        Calendar calendar = Calendar.getInstance();
-        int year = calendar.get(Calendar.YEAR);
-        int month = calendar.get(Calendar.MONTH) + 1;
-        int day = calendar.get(Calendar.DAY_OF_MONTH);
-
-        return "" + year + formatNumberToTime(month) + formatNumberToTime(day) +
-                formatNumberToTime(hour) + formatNumberToTime(minute);
-    }
-
-    /**
-     * format time from 7 to 07
-     *
-     * @param number
-     * @return
-     */
-    private String formatNumberToTime(int number) {
-        return (number < 10) ? "0" + number : "" + number;
-    }
-
-    /**
      * write time guess to firebase
      */
     private void writeTimeGuessToFirebase(String guessTime) {
         mRef.child("guess").child("is-guess").setValue(true);
         mRef.child("guess").child("guess-time").setValue(guessTime);
     }
+
+
 }
