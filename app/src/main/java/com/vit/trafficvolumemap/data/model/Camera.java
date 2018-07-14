@@ -7,18 +7,20 @@ public class Camera {
     private int car;
     private int motorbike;
     private String place;
+    private int guess;
 
 
     public Camera() {
     }
 
-    public Camera(float lat, float lng, float area, int car, int motorbike, String place) {
+    public Camera(float lat, float lng, float area, int car, int motorbike, String place, int guess) {
         this.lat = lat;
         this.lng = lng;
         this.area = area;
         this.car = car;
         this.motorbike = motorbike;
         this.place = place;
+        this.guess = guess;
     }
 
     public float getLat() {
@@ -67,6 +69,14 @@ public class Camera {
 
     public void setPlace(String place) {
         this.place = place;
+    }
+
+    public int getGuess() {
+        return guess;
+    }
+
+    public void setGuess(int guess) {
+        this.guess = guess;
     }
 
     @Override

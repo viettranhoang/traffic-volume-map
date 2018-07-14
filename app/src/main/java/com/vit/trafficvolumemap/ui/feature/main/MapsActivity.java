@@ -63,8 +63,12 @@ public class MapsActivity extends FragmentActivity
     // ---------------------------------------------------------------------------------------------
     private static final int MY_REQUEST_INT = 177;
 
+    private static boolean sIsGuess = false;
+    private static long sGuessTime = 0;
+
     private FirebaseDatabase mDatabase;
     private DatabaseReference mRef;
+    private DatabaseReference mGuessRef;
 
     private GoogleMap mMap;
 
@@ -75,6 +79,8 @@ public class MapsActivity extends FragmentActivity
     private LatLng mLatLngSearchPosition;
 
     private List<Marker> mMarkerList = new ArrayList<>();
+
+    private List<Circle> mCircleList = new ArrayList<>();
 
 
     // ---------------------------------------------------------------------------------------------
@@ -215,13 +221,16 @@ public class MapsActivity extends FragmentActivity
     private void fetchDataFromFirebase() {
         try {
             mDatabase = FirebaseDatabase.getInstance();
-            mRef = mDatabase.getReference("camera");
+            mRef = mDatabase.getReference();
 
             mRef.addValueEventListener(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    sIsGuess = (boolean) dataSnapshot.child("guess").child("is-guess").getValue();
+                    sGuessTime = (long) dataSnapshot.child("guess").child("guess-time").getValue();
+                    Timber.i(sGuessTime + "");
 
-                    List<Camera> cameraList = getDataFromFirebase(dataSnapshot);
+                    List<Camera> cameraList = getDataFromFirebase(dataSnapshot.child("camera"));
                     displayTraffic(cameraList);
                 }
 
@@ -230,6 +239,7 @@ public class MapsActivity extends FragmentActivity
 
                 }
             });
+
         } catch (Exception e) {
             Timber.e(e);
         }
@@ -265,11 +275,13 @@ public class MapsActivity extends FragmentActivity
         for (final Camera camera: cameraList) {
             final LatLng position = new LatLng(camera.getLat(), camera.getLng());
             int color;
-            if (camera.getArea() < 30) {
+            float feature = (sIsGuess) ? camera.getGuess() : camera.getArea();
+
+            if (feature < 30) {
                 color = R.color.circle_green;
-            } else if (camera.getArea() > 30 && camera.getArea() < 60) {
+            } else if (feature > 30 && feature < 60) {
                 color = R.color.circle_orange;
-            } else if (camera.getArea() > 60 && camera.getArea() < 80) {
+            } else if (feature > 60 && feature < 80) {
                 color = R.color.circle_red;
             } else {
                 color = R.color.circle_brown;
