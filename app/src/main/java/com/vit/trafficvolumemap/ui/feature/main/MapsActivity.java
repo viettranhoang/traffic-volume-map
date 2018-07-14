@@ -276,6 +276,7 @@ public class MapsActivity extends FragmentActivity
             final LatLng position = new LatLng(camera.getLat(), camera.getLng());
             int color;
             float feature = (sIsGuess) ? camera.getGuess() : camera.getArea();
+            String info = (sIsGuess) ? camera.toStringGuess() : camera.toString();
 
             if (feature < 30) {
                 color = R.color.circle_green;
@@ -286,7 +287,7 @@ public class MapsActivity extends FragmentActivity
             } else {
                 color = R.color.circle_brown;
             }
-            showCircleToGoogleMap(position, Constant.RADIUS_CIRCLE_TRAFFIC, color, camera.toString());
+            showCircleToGoogleMap(position, Constant.RADIUS_CIRCLE_TRAFFIC, color, info);
 
         }
     }

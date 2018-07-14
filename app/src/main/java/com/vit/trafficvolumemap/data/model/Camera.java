@@ -86,4 +86,9 @@ public class Camera {
                 "%\nÔ tô: " + car +
                 "\nXe máy: " + motorbike;
     }
+
+    public String toStringGuess() {
+        return place + "\n" +
+                "Tắc đường: " + guess + "%";
+    }
 }
