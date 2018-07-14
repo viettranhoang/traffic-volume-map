@@ -71,7 +71,7 @@ public class MapsActivity extends FragmentActivity
     private static final int MY_REQUEST_INT = 177;
 
     private static boolean sIsGuess = false;
-    private static long sGuessTime = 0;
+    private static String sGuessTime = "";
 
     private FirebaseDatabase mDatabase;
     private DatabaseReference mRef;
@@ -116,7 +116,9 @@ public class MapsActivity extends FragmentActivity
                     .build();
 
             initView();
+            initFirebase();
             fetchDataFromFirebase();
+
         } catch (Exception e) {
             Timber.e(e);
         }
@@ -209,6 +211,7 @@ public class MapsActivity extends FragmentActivity
     @OnClick(R.id.text_guess_time)
     void onClickTextGuessTime(View view) {
         textGuessTime.setVisibility(View.INVISIBLE);
+        mRef.child("guess").child("is-guess").setValue(false);
     }
 
 
@@ -245,18 +248,23 @@ public class MapsActivity extends FragmentActivity
     }
 
     /**
+     * setup firebase
+     */
+    private void initFirebase() {
+        mDatabase = FirebaseDatabase.getInstance();
+        mRef = mDatabase.getReference();
+    }
+
+    /**
      * fetch data from Firebase
      */
     private void fetchDataFromFirebase() {
         try {
-            mDatabase = FirebaseDatabase.getInstance();
-            mRef = mDatabase.getReference();
-
             mRef.addValueEventListener(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     sIsGuess = (boolean) dataSnapshot.child("guess").child("is-guess").getValue();
-                    sGuessTime = (long) dataSnapshot.child("guess").child("guess-time").getValue();
+                    sGuessTime = (String) dataSnapshot.child("guess").child("guess-time").getValue();
                     Timber.i(sGuessTime + "");
 
                     List<Camera> cameraList = getDataFromFirebase(dataSnapshot.child("camera"));
@@ -470,21 +478,60 @@ public class MapsActivity extends FragmentActivity
      * show time picker dialog for guess traffic
      */
     private void showTimeDialog() {
+        try {
+            Calendar calendar = Calendar.getInstance();
+            final int hour = calendar.get(Calendar.HOUR_OF_DAY);
+            int minute = calendar.get(Calendar.MINUTE);
+
+            TimePickerDialog timePickerDialog = new TimePickerDialog(this, new TimePickerDialog.OnTimeSetListener() {
+                @Override
+                public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
+                    String s = hourOfDay + ":" + minute;
+                    textGuessTime.setText(hourOfDay + ":" + minute);
+                    textGuessTime.setTag(s);
+                    textGuessTime.setVisibility(View.VISIBLE);
+
+                    writeTimeGuessToFirebase(getTimeGuess(hourOfDay, minute));
+                }
+            }, hour, minute, true);
+            timePickerDialog.show();
+        } catch (Exception e) {
+            Timber.e(e);
+        }
+    }
+
+    /**
+     * get time guess
+     *
+     * @param hour
+     * @param minute
+     * @return
+     */
+    private String getTimeGuess(int hour, int minute) {
         Calendar calendar = Calendar.getInstance();
-        final int hour = calendar.get(Calendar.HOUR_OF_DAY);
-        int minute = calendar.get(Calendar.MINUTE);
-        TimePickerDialog timePickerDialog = new TimePickerDialog(this, new TimePickerDialog.OnTimeSetListener() {
-            @Override
-            public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
-                String s = hourOfDay + ":" + minute;
-                int hourTam = hourOfDay;
-                if (hourTam > 12)
-                    hourTam = hourTam - 12;
-                textGuessTime.setText(hourTam + ":" + minute + (hourOfDay > 12 ? " PM" : " AM"));
-                textGuessTime.setTag(s);
-                textGuessTime.setVisibility(View.VISIBLE);
-            }
-        }, hour, minute, true);
-        timePickerDialog.show();
+        int year = calendar.get(Calendar.YEAR);
+        int month = calendar.get(Calendar.MONTH) + 1;
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+        return "" + year + formatNumberToTime(month) + formatNumberToTime(day) +
+                formatNumberToTime(hour) + formatNumberToTime(minute);
+    }
+
+    /**
+     * format time from 7 to 07
+     *
+     * @param number
+     * @return
+     */
+    private String formatNumberToTime(int number) {
+        return (number < 10) ? "0" + number : "" + number;
+    }
+
+    /**
+     * write time guess to firebase
+     */
+    private void writeTimeGuessToFirebase(String guessTime) {
+        mRef.child("guess").child("is-guess").setValue(true);
+        mRef.child("guess").child("guess-time").setValue(guessTime);
     }
 }
